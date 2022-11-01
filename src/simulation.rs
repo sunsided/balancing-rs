@@ -9,7 +9,7 @@ pub struct Simulation {
     search_cost_per_vector: Seconds,
     search_cost_per_scatter: Seconds,
     search_cost_per_gather: Seconds,
-    thread_count: usize,
+    pub thread_count: usize,
     threading_cost: Seconds,
 }
 
@@ -87,11 +87,20 @@ impl SimulationBuilder {
     }
 }
 
+#[derive(Debug)]
+pub struct SimulationResult {
+    /// The observed duration when everything runs in parallel.
+    pub duration: Seconds,
+    /// The total duration, as if everything executed sequentially.
+    pub duration_total: Seconds,
+}
+
 impl Simulation {
-    pub fn simulate_find(&self, index_id: usize) -> Seconds {
+    pub fn simulate_find(&self, index_id: usize) -> SimulationResult {
         let index = self.indexes.get(&index_id).expect("Index not found");
 
-        let mut search_time = Seconds(0.);
+        let mut search_time_max = Seconds(0.);
+        let mut search_time_total = Seconds(0.);
         let mut scatter_time = Seconds(0.);
         let mut gather_time = Seconds(0.);
 
@@ -103,12 +112,22 @@ impl Simulation {
             let search_time_per_vector = self.search_cost_per_vector_element * shard.vector_length;
             let base_search_time =
                 (search_time_per_vector + self.search_cost_per_vector) * shard.num_vectors;
-            let threaded_search_time = base_search_time / self.thread_count + threading_cost;
 
-            search_time = Seconds(search_time.0.max(threaded_search_time.0));
+            let threaded_search_time = base_search_time / self.thread_count + threading_cost;
+            let threaded_search_time_total = base_search_time + threading_cost;
+
+            search_time_max = Seconds(search_time_max.0.max(threaded_search_time.0));
+            search_time_total += threaded_search_time_total;
         }
 
-        search_time + scatter_time + gather_time
+        let overhead = scatter_time + gather_time;
+        let duration = search_time_max + overhead;
+        let duration_sequential = search_time_total + overhead;
+
+        SimulationResult {
+            duration,
+            duration_total: duration_sequential,
+        }
     }
 
     pub fn index_id(&self) -> Vec<usize> {
@@ -186,7 +205,7 @@ mod tests {
                 // .with_threads(4, Microseconds(10.))
                 .build();
 
-            let duration = simulation.simulate_find(0);
+            let result = simulation.simulate_find(0);
             let count: usize = assignment.iter().sum();
             let weight: usize = count * dims;
             println!(
@@ -195,9 +214,9 @@ mod tests {
                 count,
                 dims,
                 assignment.len(),
-                duration
+                result.duration
             );
-            let duration = duration;
+            let duration = result;
         }
     }
 }
