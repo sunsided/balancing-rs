@@ -1,6 +1,6 @@
-use crate::index::Index;
+use crate::index::{Index, ShardId};
 use crate::timing::Seconds;
-use std::collections::HashMap;
+use std::collections::{BinaryHeap, HashMap};
 
 #[derive(Debug)]
 pub struct Simulation {
@@ -39,6 +39,7 @@ impl Default for SimulationBuilder {
 
 impl SimulationBuilder {
     pub fn with_index(mut self, index: Index) -> Self {
+        assert!(!self.indexes.contains_key(&index.index_id));
         self.indexes.insert(index.index_id, index);
         self
     }
@@ -108,6 +109,18 @@ impl Simulation {
         }
 
         search_time + scatter_time + gather_time
+    }
+
+    pub fn index_id(&self) -> Vec<usize> {
+        self.indexes
+            .keys()
+            .cloned()
+            .collect::<BinaryHeap<_>>()
+            .into_sorted_vec()
+    }
+
+    pub fn index(&self, index_id: usize) -> &Index {
+        self.indexes.get(&index_id).expect("Index not found")
     }
 }
 
