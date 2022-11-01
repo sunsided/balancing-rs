@@ -2,6 +2,11 @@
 
 Varies different parameters such as vector count, shard count, thread count and operation latencies to determine the impact on the overall search duration.
 
+```bash
+$ cargo build
+$ target/debug/balancing-rs > results.csv
+```
+
 Example output:
 
 ```csv

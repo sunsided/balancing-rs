@@ -1,4 +1,4 @@
-use crate::index::{Index, ShardId};
+use crate::index::Index;
 use crate::timing::Seconds;
 use std::collections::{BinaryHeap, HashMap};
 

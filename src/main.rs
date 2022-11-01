@@ -6,7 +6,7 @@ mod timing;
 
 use crate::simulation::SimulationBuilder;
 use crate::timing::{Microseconds, Milliseconds, Nanoseconds};
-use index::{Index, IndexAssignment};
+use index::Index;
 use rand::{thread_rng, Rng};
 
 pub fn main() {
@@ -14,12 +14,18 @@ pub fn main() {
 
     println!("row,run,num_shards,num_threads,num_dims,num_vectors,weight,cost_per_vector,cost_per_scatter,cost_per_gather,thread_overhead,duration,total_duration");
     let mut row_id: usize = 0;
-    for run in 0..1000 {
+    for run in 0..2000 {
         let num_threads: usize = rng.gen_range(1..32);
+        let num_shards: usize = rng.gen_range(1..40);
+        let num_elements: usize = rng.gen_range(10..1_000_000);
         let search_cost_per_vector = Nanoseconds(rng.gen::<f64>() * 50.);
         let search_cost_per_scatter = Milliseconds(rng.gen::<f64>() * 100.);
         let search_cost_per_gather = Milliseconds(rng.gen::<f64>() * 100.);
         let thread_overhead = Microseconds(rng.gen::<f64>() * 100.);
+
+        let dyn_shards_hi = vec![20_000_000 / num_shards; num_shards];
+        let dyn_shards_lo = vec![100 / num_shards; num_shards];
+        let dyn_shards_dyn = vec![(num_elements / num_shards).min(1); num_shards];
 
         let simulation = SimulationBuilder::default()
             .with_index(Index::new_from_shards(0, &[20_000_000], 784))
@@ -48,6 +54,10 @@ pub fn main() {
             .with_index(Index::new_from_shards(16, &[50; 2], 786))
             .with_index(Index::new_from_shards(17, &[20; 5], 786))
             .with_index(Index::new_from_shards(18, &[10; 10], 786))
+            // Dynamic shards
+            .with_index(Index::new_from_shards(19, &dyn_shards_hi, 786))
+            .with_index(Index::new_from_shards(20, &dyn_shards_lo, 786))
+            .with_index(Index::new_from_shards(21, &dyn_shards_dyn, 786))
             .with_search_cost(Nanoseconds(0.171326754), search_cost_per_vector)
             .with_scatter_gather_cost(search_cost_per_scatter, search_cost_per_gather)
             .with_threads(num_threads, thread_overhead)
